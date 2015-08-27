@@ -17,6 +17,7 @@ import Streaming hiding (concats, unfold)
 import Streaming.Internal (Stream (..))
 import Data.ByteString.Streaming
 import Data.ByteString.Streaming.Internal
+import Data.Monoid 
 
 type Message = ([String], String)
 
