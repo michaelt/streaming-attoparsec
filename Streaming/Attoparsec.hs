@@ -21,7 +21,7 @@
 > import qualified Streaming.Prelude as S
 > import qualified Data.ByteString.Streaming.Char8 as Q
 > import qualified Data.Attoparsec.ByteString.Char8 as A
-> import qualified Streaming.Attoparsec as A
+> import qualified Streaming.Attoparsec as SA
 > import Data.Function ((&))
 >
 >
@@ -31,7 +31,7 @@
 > 
 > -- note we are using Data.Functor.& = flip ($) below
 > main = Q.getContents           -- raw bytes from stdin
->        & A.parsed lineParser   -- stream of parsed `Maybe Int`s; blank lines are `Nothing`
+>        & SA.parsed lineParser  -- stream of parsed `Maybe Int`s; blank lines are `Nothing`
 >        & void                  -- drop any unparsed nonsense at the end
 >        & S.split Nothing       -- split into substreams on blank lines
 >        & S.maps S.concat       -- keep `Just x` values in the sub-streams (cp. catMaybes)
@@ -60,7 +60,6 @@ import qualified Data.Attoparsec.Internal.Types as T
 import Data.Attoparsec.ByteString
     hiding (IResult(..), Result, eitherResult, maybeResult,
             parse, parseWith, parseTest)
-
 import Streaming hiding (concats, unfold)
 import Streaming.Internal (Stream (..))
 import Data.ByteString.Streaming
