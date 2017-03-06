@@ -18,10 +18,10 @@
    We will sum the groups and stream the results to standard output:
 
 > import Streaming
+> import Streaming.Attoparsec
 > import qualified Streaming.Prelude as S
 > import qualified Data.ByteString.Streaming.Char8 as Q
 > import qualified Data.Attoparsec.ByteString.Char8 as A
-> import qualified Streaming.Attoparsec as SA
 > import Data.Function ((&))
 >
 >
@@ -31,7 +31,7 @@
 > 
 > -- note we are using Data.Functor.& = flip ($) below
 > main = Q.getContents           -- raw bytes from stdin
->        & SA.parsed lineParser  -- stream of parsed `Maybe Int`s; blank lines are `Nothing`
+>        & parsed lineParser  -- stream of parsed `Maybe Int`s; blank lines are `Nothing`
 >        & void                  -- drop any unparsed nonsense at the end
 >        & S.split Nothing       -- split into substreams on blank lines
 >        & S.maps S.concat       -- keep `Just x` values in the sub-streams (cp. catMaybes)
@@ -73,18 +73,21 @@ data ParseError = ParseError
 
 {- | The result of a parse (@Either ParseError a@), together with the unconsumed byte stream.
 
+     Here we take several bites out of a stream in succession:
+   
 >>> :set -XOverloadedStrings  -- the string literal below denotes a streaming bytestring
->>> (r,rest1) <- SA.parse (A.scientific <* A.many' A.space) "12.3  4.56  78.3   ABC" 
+>>> (r,rest1) <- parse (A.scientific <* A.many' A.space) "12.3  4.56  78.3   ABC"
 >>> print r
-Left 12.3
->>> (s,rest2) <- SA.parse (A.scientific <* A.many' A.space) rest1
+Right 12.3 
+>>> (s,rest2) <- parse (A.scientific <* A.many' A.space) rest1 
 >>> print s
-Left 4.56
->>> (t,rest3) <- SA.parse (A.scientific <* A.many' A.space) rest2
+Right 4.56 
+>>> (t,rest3) <- parse (A.scientific <* A.many' A.space) rest2 
 >>> print t
-Left 78.3
+Right 78.3 
 >>> Q.putStrLn rest3
 ABC
+
 -}
 
 
@@ -106,8 +109,7 @@ parse parser = begin where
     T.Fail _ c m -> return (Left (ParseError m c), diff p0)
     T.Done a b   -> return (Right b, chunk a >> p0)
     T.Partial k  -> do
-      let clean p = case p of  -- inspect for null chunks before
-            Go m        -> m >>= clean  -- feeding attoparsec 
+      let clean p = case p of  -- inspect for null chunks before feeding attoparsec 
             Empty r     -> step diff (k mempty) (return r)
             Chunk bs p1 | B.null bs -> clean p1
                         | otherwise -> step (diff . (chunk bs >>)) (k bs) p1
@@ -115,9 +117,9 @@ parse parser = begin where
 {-#INLINABLE parse #-}
       
 {-| Apply a parser repeatedly to a stream of bytes, streaming the parsed values, but 
-    ending when the parser fails.or the bytes run out. 
+    ending when the parser fails or the bytes run out. 
 
->>> S.print $ SA.parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9 18.282"
+>>> S.print $ parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9 18.282"
 12.3
 4.56
 78.9
