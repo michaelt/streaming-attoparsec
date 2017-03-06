@@ -1,10 +1,9 @@
 name:                streaming-attoparsec
 version:             0.1.0.0
-synopsis:            How do you apply attoparsec parsers to effectful bytestrings?
+synopsis:            Apply attoparsec parsers to bytestreams in the sense of 'streaming-bytestring'
 description:         This just defines two functions for applying attoparsec
                      parsers to byte streams in the sense of 'streaming-bytestring',
-                     @ByteString m r@.  It transmutes some of the material from Renzo
-                     Carbonara's @pipes-attoparsec@
+                     @ByteString m r@.  
 
 license:             BSD3
 license-file:        LICENSE
