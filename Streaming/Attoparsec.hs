@@ -3,17 +3,17 @@
      of \'nesting streams\' is described in the @conduit@ context in 
      <http://stackoverflow.com/questions/32957258/how-to-model-nested-streams-with-conduits/32961296 this StackOverflow question> 
 
-> -- $ cat nums.txt
-> -- 1
-> -- 2
-> -- 3
-> --
-> -- 4
-> -- 5
-> -- 6
-> --
-> -- 7
-> -- 8
+> $ cat nums.txt
+> 1
+> 2
+> 3
+> 
+> 4
+> 5
+> 6
+> 
+> 7
+> 8
 
    We will sum the groups and stream the results to standard output:
 
@@ -25,12 +25,12 @@
 > import Data.Function ((&))
 >
 >
-> lineParser = number <|> blank 
->    where 
+> lineParser = number <|> blank  where 
 >    number = Just <$> A.scientific <* A.endOfLine 
->    blank      = Nothing <$ A.endOfLine
+>    blank  = Nothing <$ A.endOfLine
 > 
-> main = Q.getContents           -- raw bytes
+> -- note we are using Data.Functor.& = flip ($) below
+> main = Q.getContents           -- raw bytes from stdin
 >        & A.parsed lineParser   -- stream of parsed `Maybe Int`s; blank lines are `Nothing`
 >        & void                  -- drop any unparsed nonsense at the end
 >        & S.split Nothing       -- split into substreams on blank lines
@@ -67,18 +67,19 @@ import Data.ByteString.Streaming
 import Data.ByteString.Streaming.Internal
 import Data.Monoid 
 
+
 type Message = (String, [String])
 
 {- | The result of a parse (@Either a ([String], String)@), with the unconsumed byte stream.
 
 >>> :set -XOverloadedStrings  -- the string literal below denotes a streaming bytestring
->>> (r,rest1) <- AS.parse (A.scientific <* A.many' A.space) "12.3  4.56  78.3   ABC" 
+>>> (r,rest1) <- SA.parse (A.scientific <* A.many' A.space) "12.3  4.56  78.3   ABC" 
 >>> print r
 Left 12.3
->>> (s,rest2) <- AS.parse (A.scientific <* A.many' A.space) rest1
+>>> (s,rest2) <- SA.parse (A.scientific <* A.many' A.space) rest1
 >>> print s
 Left 4.56
->>> (t,rest3) <- AS.parse (A.scientific <* A.many' A.space) rest2
+>>> (t,rest3) <- SA.parse (A.scientific <* A.many' A.space) rest2
 >>> print t
 Left 78.3
 >>> Q.putStrLn rest3
@@ -110,11 +111,12 @@ parse parser = begin where
             Chunk bs p1 | B.null bs -> clean p1
                         | otherwise -> step (diff . (chunk bs >>)) (k bs) p1
       clean p0
-
+{-#INLINABLE parse #-}
+      
 {-| Apply a parser repeatedly to a stream of bytes, streaming the parsed values, but 
     ending when the parser fails.or the bytes run out.
 
->>> S.print $ AS.parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9"
+>>> S.print $ SA.parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9 18.282"
 12.3
 4.56
 78.9
@@ -127,11 +129,11 @@ parsed
   -> Stream (Of a) m (Either (Message, ByteString m r) r)
 parsed parser = begin
   where
-    begin p0 = case p0 of  -- inspect for null chunks before
-            Go m        -> lift m >>= begin -- feeding attoparsec 
-            Empty r     -> Return (Right r)
-            Chunk bs p1 | B.null bs -> begin p1
-                        | otherwise -> step (chunk bs >>) (A.parse parser bs) p1
+    begin p0 = case p0 of  -- inspect for null chunks before feeding attoparsec 
+      Empty r     -> Return (Right r)
+      Chunk bs p1 | B.null bs -> begin p1
+                  | otherwise -> step (chunk bs >>) (A.parse parser bs) p1
+      Go m       -> Effect (fmap begin m) 
     step diffP res p0 = case res of
       A.Fail _ c m -> Return (Left ((m,c), diffP p0))
       A.Done bs a  | B.null bs -> Step (a :> begin p0) 
