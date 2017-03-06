@@ -72,7 +72,7 @@ data ParseError = ParseError
    , parseContexts :: [String]
    } deriving (Show, Eq, Ord)
 
-{- | The result of a parse (@Either a ([String], String)@), with the unconsumed byte stream.
+{- | The result of a parse (@Either ParseError a@), together with the unconsumed byte stream.
 
 >>> :set -XOverloadedStrings  -- the string literal below denotes a streaming bytestring
 >>> (r,rest1) <- SA.parse (A.scientific <* A.many' A.space) "12.3  4.56  78.3   ABC" 
@@ -116,7 +116,7 @@ parse parser = begin where
 {-#INLINABLE parse #-}
       
 {-| Apply a parser repeatedly to a stream of bytes, streaming the parsed values, but 
-    ending when the parser fails.or the bytes run out.
+    ending when the parser fails.or the bytes run out. 
 
 >>> S.print $ SA.parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9 18.282"
 12.3
