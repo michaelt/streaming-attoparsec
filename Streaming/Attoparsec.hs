@@ -46,11 +46,10 @@
 
 -} 
 module Streaming.Attoparsec
-    (ParseError(..)
-    , parse
+    (parse
     , parsed 
-    , Parser
---    , module Data.Attoparsec.ByteString
+    , ParseError(..) 
+    , Parser 
     )
     where
 
