@@ -39,14 +39,14 @@
 >        & S.print               -- stream results to stdout
 
 
-> -- $ cat nums.txt | ./atto
-> -- 6.0
-> -- 15.0
-> -- 15.0
+> $ cat nums.txt | ./atto
+> 6.0
+> 15.0
+> 15.0
 
 -} 
 module Streaming.Attoparsec
-    (Message
+    (ParseError(..)
     , parse
     , parsed 
     , Parser
@@ -66,8 +66,11 @@ import Data.ByteString.Streaming
 import Data.ByteString.Streaming.Internal
 import Data.Monoid 
 
-
-type Message = (String, [String])
+-- | Error material from Attoparsec
+data ParseError = ParseError 
+   { parseMessage :: String
+   , parseContexts :: [String]
+   } deriving (Show, Eq, Ord)
 
 {- | The result of a parse (@Either a ([String], String)@), with the unconsumed byte stream.
 
@@ -91,7 +94,7 @@ parse
     :: Monad m =>
        A.Parser a
        -> ByteString m r
-       -> m (Either Message a, ByteString m r)
+       -> m (Either ParseError a, ByteString m r)
 parse parser = begin where
   begin p0 = case p0 of
     Go m        -> m >>= begin
@@ -101,7 +104,7 @@ parse parser = begin where
       else step (chunk bs >>) (A.parse parser bs) p1
 
   step diff res p0 = case res of
-    T.Fail _ c m -> return (Left (m, c), diff p0)
+    T.Fail _ c m -> return (Left (ParseError m c), diff p0)
     T.Done a b   -> return (Right b, chunk a >> p0)
     T.Partial k  -> do
       let clean p = case p of  -- inspect for null chunks before
@@ -125,7 +128,7 @@ parsed
   :: Monad m
   => A.Parser a     -- ^ Attoparsec parser
   -> ByteString m r -- ^ Raw input
-  -> Stream (Of a) m (Either (Message, ByteString m r) r)
+  -> Stream (Of a) m (Either (ParseError, ByteString m r) r)
 parsed parser = begin
   where
     begin p0 = case p0 of  -- inspect for null chunks before feeding attoparsec 
@@ -134,7 +137,7 @@ parsed parser = begin
                   | otherwise -> step (chunk bs >>) (A.parse parser bs) p1
       Go m       -> Effect (fmap begin m) 
     step diffP res p0 = case res of
-      A.Fail _ c m -> Return (Left ((m,c), diffP p0))
+      A.Fail _ c m -> Return (Left (ParseError m c, diffP p0))
       A.Done bs a  | B.null bs -> Step (a :> begin p0) 
                    | otherwise -> Step (a :> begin (chunk bs >> p0))
       A.Partial k  -> do
