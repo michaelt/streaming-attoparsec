@@ -64,6 +64,7 @@ import Streaming.Internal (Stream (..))
 import Data.ByteString.Streaming
 import Data.ByteString.Streaming.Internal
 import Data.Monoid 
+import Control.Monad (liftM)
 
 -- | Error material from Attoparsec
 data ParseError = ParseError 
@@ -115,11 +116,17 @@ parse parser = begin where
                         | otherwise -> step (diff . (chunk bs >>)) (k bs) p1
       clean p0
 {-#INLINABLE parse #-}
-      
+
 {-| Apply a parser repeatedly to a stream of bytes, streaming the parsed values, but 
     ending when the parser fails or the bytes run out. 
 
 >>> S.print $ parsed (A.scientific <* A.many' A.space) $ "12.3  4.56  78.9 18.282"
+12.3
+4.56
+78.9
+18.282
+>>> let chunked = mapM_ Q.chunk ["12.","3  4.56","","","  7","8.9 ","","18.282"]
+>>> S.print $ SA.parsed (A.scientific <* A.many' A.space) chunked
 12.3
 4.56
 78.9
@@ -136,7 +143,7 @@ parsed parser = begin
       Empty r     -> Return (Right r)
       Chunk bs p1 | B.null bs -> begin p1
                   | otherwise -> step (chunk bs >>) (A.parse parser bs) p1
-      Go m       -> Effect (fmap begin m) 
+      Go m       -> Effect (liftM begin m) 
     step diffP res p0 = case res of
       A.Fail _ c m -> Return (Left (ParseError m c, diffP p0))
       A.Done bs a  | B.null bs -> Step (a :> begin p0) 

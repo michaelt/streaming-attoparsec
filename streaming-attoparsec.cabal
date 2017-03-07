@@ -1,10 +1,9 @@
 name:                streaming-attoparsec
 version:             0.1.0.0
 synopsis:            Apply attoparsec parsers to bytestreams in the sense of 'streaming-bytestring'
-description:         Materials for applying attoparsec
-                     parsers to byte streams in the sense of the 
-                     <http://hackage.haskell.org/package/streaming-bytestring streaming bytestring> library.
-                     @ByteString m r@.  
+description:         Materials for applying attoparsec parsers to byte streams in the sense of the 
+                     <http://hackage.haskell.org/package/streaming-bytestring streaming bytestring> 
+                     library.  
 
 license:             BSD3
 license-file:        LICENSE
